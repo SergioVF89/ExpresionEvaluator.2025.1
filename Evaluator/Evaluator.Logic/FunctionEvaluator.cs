@@ -1,8 +1,10 @@
-﻿namespace Evaluator.Logic;
+﻿using System.Text;
+
+namespace Evaluator.Logic;
 
 public class FunctionEvaluator
 {
-    public static double Evalute(string infix)
+    public static double Evaluate(string infix)
     {
         var postfix = ToPostfix(infix);
         return Calculate(postfix);
@@ -11,19 +13,46 @@ public class FunctionEvaluator
     private static double Calculate(string postfix)
     {
         var stack = new Stack<double>();
-        foreach (var item in postfix)
+        StringBuilder numberBuffer = new StringBuilder();
+
+        foreach (char item in postfix)
         {
+            if (item == ' ') 
+            {
+                if (numberBuffer.Length > 0)
+                {
+                    stack.Push(double.Parse(numberBuffer.ToString()));
+                    numberBuffer.Clear();
+                }
+                continue;
+            }
+
             if (IsOperator(item))
             {
+                // Si hay un número en el buffer, procesarlo primero
+                if (numberBuffer.Length > 0)
+                {
+                    stack.Push(double.Parse(numberBuffer.ToString()));
+                    numberBuffer.Clear();
+                }
+
                 var operator2 = stack.Pop();
                 var operator1 = stack.Pop();
                 stack.Push(Result(operator1, item, operator2));
             }
             else
             {
-                stack.Push(char.GetNumericValue(item));
+                // Acumular dígitos
+                numberBuffer.Append(item);
             }
         }
+
+        // Procesar cualquier numero restante en el buffer
+        if (numberBuffer.Length > 0)
+        {
+            stack.Push(double.Parse(numberBuffer.ToString()));
+        }
+
         return stack.Pop();
     }
 
@@ -36,18 +65,27 @@ public class FunctionEvaluator
             '*' => operator1 * operator2,
             '/' => operator1 / operator2,
             '^' => Math.Pow(operator1, operator2),
-            _ => throw new Exception("Invalid expresion"),
+            _ => throw new Exception("Invalid expression"),
         };
     }
 
     private static string ToPostfix(string infix)
     {
         var stack = new Stack<char>();
-        var postfix = string.Empty;
+        var postfix = new StringBuilder();
+        StringBuilder numberBuffer = new StringBuilder();
+
         foreach (var item in infix)
         {
             if (IsOperator(item))
             {
+                // Si hay un número en el buffer, agregarlo a postfix primero
+                if (numberBuffer.Length > 0)
+                {
+                    postfix.Append(numberBuffer.ToString()).Append(' ');
+                    numberBuffer.Clear();
+                }
+
                 if (stack.Count == 0)
                 {
                     stack.Push(item);
@@ -58,9 +96,9 @@ public class FunctionEvaluator
                     {
                         do
                         {
-                            postfix += stack.Pop();
+                            postfix.Append(stack.Pop()).Append(' ');
                         } while (stack.Peek() != '(');
-                        stack.Pop();
+                        stack.Pop(); // Quitar el '(' de la pila
                     }
                     else
                     {
@@ -70,22 +108,44 @@ public class FunctionEvaluator
                         }
                         else
                         {
-                            postfix += stack.Pop();
+                            while (stack.Count > 0 && PriorityExpression(item) <= PriorityStack(stack.Peek()))
+                            {
+                                postfix.Append(stack.Pop()).Append(' ');
+                            }
                             stack.Push(item);
                         }
                     }
                 }
             }
+            else if (char.IsDigit(item) || item == '.')
+            {
+                // Acumular dígitos y punto decimal
+                numberBuffer.Append(item);
+            }
+            else if (item == ' ')
+            {
+                // Ignorar espacios en la entrada
+                continue;
+            }
             else
             {
-                postfix += item;
+                throw new Exception($"Carácter no válido: {item}");
             }
         }
-        do
+
+        // Agregar cualquier número restante en el buffer
+        if (numberBuffer.Length > 0)
         {
-            postfix += stack.Pop();
-        } while (stack.Count > 0);
-        return postfix;
+            postfix.Append(numberBuffer.ToString()).Append(' ');
+        }
+
+        // Vaciar la pila
+        while (stack.Count > 0)
+        {
+            postfix.Append(stack.Pop()).Append(' ');
+        }
+
+        return postfix.ToString().Trim();
     }
 
     private static int PriorityStack(char item)

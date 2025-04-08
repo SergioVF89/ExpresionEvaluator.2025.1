@@ -111,7 +111,16 @@ namespace Evaluator.UI.Windows
 
         private void btnResult_Click(object sender, EventArgs e)
         {
-            txtDisplay.Text += $"={FunctionEvaluator.Evaluate(txtDisplay.Text)}";
+            try
+            {
+                txtDisplay.Text += $"={FunctionEvaluator.Evaluate(txtDisplay.Text)}";
+            }
+            catch (Exception)
+            {
+
+                txtDisplay.Text = $"ERROR";
+            }
+            
         }
     }
 }
